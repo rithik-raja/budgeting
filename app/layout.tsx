@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-sans",
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -22,26 +25,37 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={cn(
+        "dark h-full antialiased",
+        inter.variable,
+        geistMono.variable
+      )}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 dark:bg-black">
-        <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+      <body className="flex min-h-full flex-col bg-background text-foreground">
+        <header className="border-b bg-background">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-            <Link
-              href="/"
-              className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<Link href="/" />}
+              nativeButton={false}
             >
               Budgeting
-            </Link>
-            <Link
-              href="/categories"
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-            >
-              Categories
-            </Link>
+            </Button>
+            <nav>
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link href="/categories" />}
+                nativeButton={false}
+              >
+                Categories
+              </Button>
+            </nav>
           </div>
         </header>
-        {children}
+        <main className="flex-1">{children}</main>
+        <Toaster />
       </body>
     </html>
   );

@@ -1,13 +1,35 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
+import { CircleAlertIcon, LandmarkIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   computeMonthlyCashFlow,
   countTransactions,
   latestSync,
-  summaryCounts,
+  pendingSummary,
 } from "@/lib/data";
 import { formatCurrency, formatMonth } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 async function CashFlow() {
   // Sync SQLite reads are "predictable", so opt into per-request rendering.
@@ -15,7 +37,7 @@ async function CashFlow() {
 
   const transactions = countTransactions();
   const monthly = computeMonthlyCashFlow();
-  const { months } = summaryCounts();
+  const pending = pendingSummary();
   const sync = latestSync();
 
   const totalIncome = monthly.reduce((sum, m) => sum + m.income, 0);
@@ -24,129 +46,146 @@ async function CashFlow() {
 
   if (transactions === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <p className="font-medium text-zinc-900 dark:text-zinc-100">No transactions yet.</p>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Run <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs dark:bg-zinc-900">npm run sync</code>{" "}
-          to fetch from SimpleFIN. Responses are cached to{" "}
-          <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs dark:bg-zinc-900">
-            data/simplefin/
-          </code>{" "}
-          first, so parsing errors never cost a request.
-        </p>
+      <Empty className="border border-dashed bg-card">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <LandmarkIcon />
+          </EmptyMedia>
+          <EmptyTitle>No transactions yet</EmptyTitle>
+          <EmptyDescription>
+            Run{" "}
+            <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+              npm run sync
+            </code>{" "}
+            to fetch from SimpleFIN. Responses are cached to{" "}
+            <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+              data/simplefin/
+            </code>{" "}
+            first, so parsing errors never cost a request.
+          </EmptyDescription>
+        </EmptyHeader>
         {sync?.error && (
-          <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 font-mono text-xs text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
-            {sync.error}
-          </p>
+          <Alert variant="destructive" className="max-w-xl text-left">
+            <CircleAlertIcon />
+            <AlertTitle>Last sync failed</AlertTitle>
+            <AlertDescription className="font-mono text-xs">
+              {sync.error}
+            </AlertDescription>
+          </Alert>
         )}
-      </div>
+      </Empty>
     );
   }
 
   return (
-    <>
-      <p className="mb-8 text-zinc-600 dark:text-zinc-400">
-        {transactions.toLocaleString()} transactions across {months} months
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            {transactions.toLocaleString()} transactions across {monthly.length}{" "}
+            months
+          </p>
+          {pending.count > 0 && (
+            <Badge variant="secondary">{pending.count} pending</Badge>
+          )}
+        </div>
         {sync && (
-          <span className="text-zinc-400 dark:text-zinc-500">
-            {" "}
-            · last synced{" "}
+          <p className="text-xs text-muted-foreground">
+            Last synced{" "}
             {new Date(sync.started_at * 1000).toLocaleString("en-US", {
               month: "short",
               day: "numeric",
               hour: "numeric",
               minute: "2-digit",
             })}
-          </span>
+          </p>
         )}
-      </p>
+      </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-100 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-            <tr>
-              <th className="px-4 py-3">Month</th>
-              <th className="px-4 py-3 text-right">Income</th>
-              <th className="px-4 py-3 text-right">Expenses</th>
-              <th className="px-4 py-3 text-right">Net</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+      <Card className="gap-0 py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Month</TableHead>
+              <TableHead className="text-right">Money in</TableHead>
+              <TableHead className="text-right">Money out</TableHead>
+              <TableHead className="text-right">Net cash flow</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {monthly.map((m) => (
-              <tr key={m.month} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
+              <TableRow key={m.month}>
+                <TableCell>
                   <Link
                     href={`/${m.month}`}
-                    className="text-blue-600 hover:underline dark:text-blue-400"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
                   >
                     {formatMonth(m.month)}
                   </Link>
-                </td>
-                <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-success">
                   {formatCurrency(m.income)}
-                </td>
-                <td className="px-4 py-3 text-right text-rose-700 dark:text-rose-400">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-destructive">
                   {formatCurrency(m.expenses)}
-                </td>
-                <td
-                  className={`px-4 py-3 text-right font-medium ${
-                    m.net >= 0
-                      ? "text-emerald-700 dark:text-emerald-400"
-                      : "text-rose-700 dark:text-rose-400"
-                  }`}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right font-medium tabular-nums",
+                    m.net >= 0 ? "text-success" : "text-destructive"
+                  )}
                 >
                   {formatCurrency(m.net)}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-          <tfoot className="bg-zinc-100 font-semibold text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell>Total</TableCell>
+              <TableCell className="text-right tabular-nums text-success">
                 {formatCurrency(totalIncome)}
-              </td>
-              <td className="px-4 py-3 text-right text-rose-700 dark:text-rose-400">
+              </TableCell>
+              <TableCell className="text-right tabular-nums text-destructive">
                 {formatCurrency(totalExpenses)}
-              </td>
-              <td
-                className={`px-4 py-3 text-right ${
-                  totalNet >= 0
-                    ? "text-emerald-700 dark:text-emerald-400"
-                    : "text-rose-700 dark:text-rose-400"
-                }`}
+              </TableCell>
+              <TableCell
+                className={cn(
+                  "text-right tabular-nums",
+                  totalNet >= 0 ? "text-success" : "text-destructive"
+                )}
               >
                 {formatCurrency(totalNet)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-500">
-        Transfers and credit card payments are excluded from cash flow to avoid double counting.
-      </p>
-    </>
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </Card>
+    </div>
   );
 }
 
 function CashFlowSkeleton() {
   return (
-    <div className="h-64 animate-pulse rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950" />
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-56" />
+        <Skeleton className="h-3 w-36" />
+      </div>
+      <Skeleton className="h-96 rounded-4xl" />
+    </div>
   );
 }
 
 export default function Home() {
   return (
-    <div className="px-6 py-12">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Monthly Cash Flow
-        </h1>
-        <Suspense fallback={<CashFlowSkeleton />}>
-          <CashFlow />
-        </Suspense>
-      </div>
+    <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-12">
+      <h1 className="font-heading text-3xl font-semibold tracking-tight">
+        Monthly Cash Flow
+      </h1>
+      <Suspense fallback={<CashFlowSkeleton />}>
+        <CashFlow />
+      </Suspense>
     </div>
   );
 }

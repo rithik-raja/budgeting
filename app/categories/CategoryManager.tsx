@@ -2,19 +2,39 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { createCategory, deleteCategory } from "@/app/actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast";
 import type { Category } from "@/lib/types";
+
+const FALLBACK_CATEGORY = "Other";
 
 export default function CategoryManager({ categories }: { categories: Category[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-
-  const expenseLike = categories.filter(
-    (c) => !c.is_system || c.name === "Groceries" || c.name === "Bills" || c.name === "Other"
-  );
-  const systemOther = categories.filter((c) => !expenseLike.includes(c));
 
   const onCreate = () => {
     if (!name.trim()) return;
@@ -22,10 +42,13 @@ export default function CategoryManager({ categories }: { categories: Category[]
     fd.set("name", name.trim());
     startTransition(async () => {
       const res = await createCategory(fd);
-      setMessage(res.message);
+      toast.add({
+        type: res.ok ? "success" : "error",
+        title: res.ok ? "Category created" : "Could not create category",
+        description: res.message,
+      });
       if (res.ok) setName("");
       router.refresh();
-      setTimeout(() => setMessage(null), 3500);
     });
   };
 
@@ -34,64 +57,101 @@ export default function CategoryManager({ categories }: { categories: Category[]
     fd.set("id", String(id));
     startTransition(async () => {
       const res = await deleteCategory(fd);
-      setMessage(res.message);
+      toast.add({
+        type: res.ok ? "success" : "error",
+        title: res.ok ? "Category deleted" : "Could not delete category",
+        description: res.message,
+      });
       router.refresh();
-      setTimeout(() => setMessage(null), 3500);
     });
   };
 
   return (
-    <>
-      <div className="mb-6 flex gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="New category name"
-          className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onCreate();
-          }}
-        />
-        <button
-          disabled={isPending || !name.trim()}
-          onClick={onCreate}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          Add
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Card size="sm">
+        <CardContent>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="new-category">New category</FieldLabel>
+              <InputGroup>
+                <InputGroupInput
+                  id="new-category"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="New category name"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onCreate();
+                  }}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    variant="secondary"
+                    size="sm"
+                    disabled={isPending || !name.trim()}
+                    onClick={onCreate}
+                  >
+                    {isPending ? (
+                      <Spinner data-icon="inline-start" />
+                    ) : (
+                      <PlusIcon data-icon="inline-start" />
+                    )}
+                    Add
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
+          </FieldGroup>
+        </CardContent>
+      </Card>
 
-      {message && (
-        <div className="mb-4 rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-          {message}
-        </div>
-      )}
-
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-900">
-          {expenseLike.map((c) => (
-            <li key={c.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <span className="font-medium text-zinc-900 dark:text-zinc-100">{c.name}</span>
-              {c.is_system ? (
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">system</span>
-              ) : (
-                <button
-                  disabled={isPending}
-                  onClick={() => onDelete(c.id)}
-                  className="text-xs text-rose-600 hover:underline disabled:opacity-50 dark:text-rose-400"
-                >
-                  Delete
-                </button>
+      <Card size="sm" className="gap-0 py-0">
+        <ul className="divide-y divide-border">
+          {categories.map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm font-medium">{c.name}</span>
+              {c.name !== FALLBACK_CATEGORY && (
+                <AlertDialog>
+                  <AlertDialogTrigger render={<Button variant="ghost" size="sm" />}>
+                    <Trash2Icon data-icon="inline-start" />
+                    Delete
+                  </AlertDialogTrigger>
+                  <AlertDialogContent size="sm">
+                    <AlertDialogHeader>
+                      <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                        <Trash2Icon />
+                      </AlertDialogMedia>
+                      <AlertDialogTitle>Delete {c.name}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Its transactions move back to {FALLBACK_CATEGORY}. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel variant="ghost">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        disabled={isPending}
+                        onClick={() => onDelete(c.id)}
+                      >
+                        {isPending ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <Trash2Icon data-icon="inline-start" />
+                        )}
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </li>
           ))}
         </ul>
-      </div>
+      </Card>
 
-      <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
-        Deleting a category moves its transactions back to Other. System categories:{" "}
-        {systemOther.map((c) => c.name).join(", ")}.
+      <p className="text-xs text-muted-foreground">
+        Sync assigns new transactions to these categories. Deleting a category moves its
+        transactions back to {FALLBACK_CATEGORY}; {FALLBACK_CATEGORY} cannot be deleted.
       </p>
-    </>
+    </div>
   );
 }

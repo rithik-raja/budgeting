@@ -1,5 +1,3 @@
-export type CategoryKind = "expense" | "income" | "transfer";
-
 export interface Account {
   id: string;
   conn_id: string;
@@ -14,9 +12,7 @@ export interface Account {
 export interface Category {
   id: number;
   name: string;
-  kind: CategoryKind;
   color: string | null;
-  is_system: number;
   sort_order: number;
 }
 
@@ -39,22 +35,25 @@ export interface Transaction {
 export interface TransactionRow extends Transaction {
   account_name: string;
   category_name: string;
-  category_kind: CategoryKind;
-  category_color: string | null;
 }
 
 export interface MonthlyCashFlow {
   month: string; // YYYY-MM
+  /** Real money in (payroll, interest, dividends). */
   income: number;
+  /** Real money out, net of refunds. */
   expenses: number;
+  /** income - expenses. */
   net: number;
+  /** Net of movements between the user's own accounts. Excluded from `net`. */
+  internalNet: number;
+  internalCount: number;
+  transactions: number;
 }
 
 export interface MonthCategoryTotal {
   category_id: number;
   category_name: string;
-  category_kind: CategoryKind;
-  category_color: string | null;
   total: number;
   count: number;
 }

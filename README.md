@@ -9,11 +9,18 @@ Personal budgeting app. Read-only SimpleFIN sync, local SQLite, no manual entry.
 
    ```
    SIMPLEFIN_TOKEN=<base64 setup token>
+   OPENCODE_API_KEY=<OpenCode key>
    ```
 
    The setup token is one-time-use. On first sync it is exchanged for an Access
    URL, which is saved to `data/simplefin/access-url.txt` (mode 600) and reused
    from then on.
+
+   `OPENCODE_API_KEY` is used during sync to categorize new transactions with
+   `deepseek-v4.1-flash`. If it is missing or the request fails, new rows fall
+   back to `Other` and the sync still succeeds. By default the script calls
+   OpenCode Go (`https://opencode.ai/zen/go/v1/chat/completions`); set
+   `OPENCODE_CHAT_URL` to override the endpoint.
 
 ## Run
 
@@ -55,13 +62,18 @@ that, so short intervals mostly no-op. 6h–12h is the sensible range.
 
 ## Categories
 
-Every transaction has a category. Seeds: **Groceries**, **Bills**, **Other**,
-plus system **Transfer** and **Income** (not user-assignable).
+Every transaction has a category. Seeds: **Groceries**, **Bills**, **Dining**,
+**Shopping**, **Gas**, **Other**, **Transfer**, and **Income**. `Other` is the
+fallback and cannot be deleted.
 
-New transactions land in Other. Assign one from the month view — optionally
-ticking "apply to similar transactions", which matches by normalized merchant
-key (e.g. `TST* LEGEND BNG NAPLES FL` → `legend bng naples`) and applies across
-all accounts. Learnings are stored in `category_rules`.
+New transactions are assigned automatically during sync: the script sends the
+current category names and the new transaction descriptions to
+`deepseek-v4.1-flash` through the OpenCode API. If the API key is missing or a
+request fails, the transaction lands in `Other`.
+
+To change one transaction, click its category in the month view and pick another
+category from the dropdown. Existing transactions are never re-categorized by a
+later sync.
 
 ## SimpleFIN notes
 
