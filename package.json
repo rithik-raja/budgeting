@@ -1,0 +1,26 @@
+{
+  "name": "budgeting",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "sync": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sync.ts",
+    "typecheck": "tsc --noEmit",
+    "sync:once": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sync.ts --once"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5"
+  }
+}
